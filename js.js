@@ -991,6 +991,88 @@ lt.onclick = function(){ openFD('.json',load) }
 imp.onclick = function(){ openFD('.ged',impged) }
 //exp.addEventListener('click', expged);
 //ln.addEventListener('dblclick', updln);
+document.getElementById("btn-vr").onclick = () => toggleVR(drawFamilyTree3D, 800, 600, null, draw);
+document.getElementById("btn-xr").onclick = () => toggleAR(drawFamilyTree3D, 800, 600, null, draw);
+
+function createTextCanvas(text) {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = 256;
+    canvas.height = 128;
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "black";
+    ctx.font = "20px monospace";
+    ctx.textAlign = "center";
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], canvas.width / 2, 30 + i * 25);
+    }
+    return canvas;
+}
+
+function drawFamilyTree3D(gl, programs, buffers, view) {
+    const { solidColorProgramInfo, textureProgramInfo } = programs;
+    const { quad } = buffers.genericBuffers;
+
+    for (let i = 0; i < json.people.length; i++) {
+        const person = json.people[i];
+        if (person) {
+            const personModelMatrix = glMatrix.mat4.create();
+            const x = (person.x / can.width) * 2 - 1;
+            const y = -((person.y / can.height) * 2 - 1);
+            glMatrix.mat4.translate(personModelMatrix, personModelMatrix, [x, y, 0]);
+            glMatrix.mat4.scale(personModelMatrix, personModelMatrix, [person.w / can.width, person.h / can.height, 0.01]);
+
+            const finalMatrix = glMatrix.mat4.create();
+            glMatrix.mat4.multiply(finalMatrix, getCanvasModelMatrix(), personModelMatrix);
+
+            const text = `id: ${person.id}\n${person.gn}\n${person.fn}`;
+            const textCanvas = createTextCanvas(text);
+            const texture = initTexture(gl, textCanvas);
+            drawTextured(gl, textureProgramInfo, quad, texture, finalMatrix, view);
+        }
+    }
+
+    for (let i = 0; i < json.lines.length; i++) {
+        const line = json.lines[i];
+        const [startId, endId] = line.id.split('-');
+        const startPerson = json.people[startId];
+        const endPerson = json.people[endId];
+
+        if (startPerson && endPerson) {
+            const startX = (startPerson.x / can.width) * 2 - 1;
+            const startY = -((startPerson.y / can.height) * 2 - 1);
+            const endX = (endPerson.x / can.width) * 2 - 1;
+            const endY = -((endPerson.y / can.height) * 2 - 1);
+
+            const lineModelMatrix = glMatrix.mat4.create();
+            const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+            const midX = (startX + endX) / 2;
+            const midY = (startY + endY) / 2;
+
+            const direction = [endX - startX, endY - startY, 0];
+            glMatrix.vec3.normalize(direction, direction);
+
+            const rotationMatrix = glMatrix.mat4.create();
+            const up = [0, 1, 0];
+            const axis = glMatrix.vec3.create();
+            glMatrix.vec3.cross(axis, direction, [0, 0, 1]);
+            glMatrix.vec3.normalize(axis, axis);
+            const angle = Math.acos(glMatrix.vec3.dot(direction, [0, 0, 1]));
+            glMatrix.mat4.fromRotation(rotationMatrix, -angle, axis);
+
+            glMatrix.mat4.translate(lineModelMatrix, lineModelMatrix, [midX, midY, 0]);
+            glMatrix.mat4.multiply(lineModelMatrix, lineModelMatrix, rotationMatrix);
+            glMatrix.mat4.scale(lineModelMatrix, lineModelMatrix, [0.005, distance / 2, 0.005]);
+
+            const finalMatrix = glMatrix.mat4.create();
+            glMatrix.mat4.multiply(finalMatrix, getCanvasModelMatrix(), lineModelMatrix);
+            drawSolid(gl, solidColorProgramInfo, buffers.pieceBuffers.stick, finalMatrix, view, [1, 1, 1, 1]);
+        }
+    }
+}
+
 json = JSON.parse(data);
 cent.cen = 1;
 pan(0,150); //move canvas down

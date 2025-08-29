@@ -46,8 +46,8 @@
 <button id="cent">Center Tree</button>
 <button id='imp'>Import GED</button>
 <button id='sos'>Help</button>
-<button id='VR'>VR</button>
-<button id='XR'>XR</button>
+<button id='btn-vr'>Start VR</button>
+<button id='btn-xr'>Start XR</button>
 [<font id='ver'></font>]<br>
 </div>
 <hr id="hr">
