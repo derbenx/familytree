@@ -23,7 +23,7 @@
 */
 
 //Global Variables ***
-ver="1.3.6"; //VERSION
+ver="1.4.0VR"; //VERSION
 document.getElementById('ver').innerHTML="Ver "+ver;
 
 //define json structure
