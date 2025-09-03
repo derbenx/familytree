@@ -18,7 +18,7 @@
 */
 
 //Global Variables ***
-ver="1.4.0 VR"; //VERSION
+ver="1.4.0 VR"; //VERSION, update the third number in version anytime changes are made to this file!!
 document.getElementById('ver').innerHTML="Ver "+ver;
 
 //define json structure
