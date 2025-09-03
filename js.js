@@ -4,30 +4,26 @@
  bar doesn't work chrome
  canvas doesn't resize with screen
 
- NextCloud
-  figure out min width?
- 
- GED Delete issue
-  gedcom555.GED
-  recursive deleting? find other id lines matching ID
- 
  zoom
   half boxes, 3 lines txt?
   or actual scale zoom?
 
+ GED Delete issue
+  gedcom555.GED
+  recursive deleting? find other id lines matching ID
  Sort GED files
   -any better?
-  
  export GED files? - https://www.gedcom.org/validators.html
 
 */
 
 //Global Variables ***
-ver="1.4.0VR"; //VERSION
+ver="1.4.0 VR"; //VERSION
 document.getElementById('ver').innerHTML="Ver "+ver;
 
 //define json structure
-const newdata='{ "pan":[ { "x":0,"y":0 } ], "tree":"My Family", "select":0, "people":[ ], "lines":[ ] }';
+//const newdata='{ "pan":[ { "x":0,"y":0 } ], "tree":"My Family", "select":0, "people":[ ], "lines":[ ] }';
+const newdata='{"pan":[{"x":36.999999999999886,"y":579.0000000000001}],"tree":"Simpsons Family","select":1,"people":[{"id":0,"x":396,"y":100,"z":-20,"w":160,"h":100,"gn":"Marge","fn":"Simpson","sx":0,"br":"1985","dt":"-","oi":""},{"id":1,"x":635,"y":99,"z":-20,"w":160,"h":100,"gn":"Homer","fn":"Simpson","sx":1,"br":"1983","dt":"na","oi":""},{"id":2,"x":133,"y":244,"z":-20,"w":160,"h":100,"gn":"Bart","fn":"Simpson","sx":1,"br":"2001","dt":"na","oi":""},{"id":3,"x":359,"y":244,"z":-20,"w":160,"h":100,"gn":"Lisa","fn":"Simpson","sx":0,"br":"2002","dt":"na","oi":""},{"id":4,"x":592,"y":246,"z":-20,"w":160,"h":100,"gn":"Maggie","fn":"Simpson","sx":0,"br":"2003","dt":"na","oi":""},{"id":5,"x":462,"y":-49,"z":-20,"w":160,"h":100,"gn":"Mona","fn":"Simpson","sx":0,"br":"1963","dt":"na","oi":""},{"id":6,"x":712,"y":-49,"z":-20,"w":160,"h":100,"gn":"Abe","fn":"Simpson","sx":1,"br":"1963","dt":"na","oi":""},{"id":7,"x":140,"y":-61,"z":-20,"w":160,"h":100,"gn":"Jackie","fn":"Bouvier","sx":0,"br":"1965","dt":"-","oi":""},{"id":8,"x":-112,"y":-62,"z":-20,"w":160,"h":100,"gn":"Clancy","fn":"Bouvier","sx":1,"br":"1965","dt":"-","oi":""},{"id":9,"x":-96,"y":97,"z":-20,"w":160,"h":100,"gn":"Selma","fn":"Bouvier","sx":0,"br":"1985","dt":"-","oi":""},{"id":10,"x":136,"y":101,"z":-20,"w":160,"h":100,"gn":"Patty","fn":"Bouvier","sx":0,"br":"1985","dt":"-","oi":""},{"id":11,"x":941,"y":-40,"z":-20,"w":160,"h":100,"gn":"Edwina","fn":"","sx":0,"br":"1963","dt":"na","oi":""},{"id":12,"x":1028,"y":-172,"z":-20,"w":160,"h":100,"gn":"unnamed","fn":"","sx":0,"br":"","dt":"","oi":""},{"id":13,"x":922,"y":99,"z":-20,"w":160,"h":100,"gn":"Abbey","fn":"Simpson","sx":0,"br":"1983","dt":"na","oi":""},{"id":14,"x":-117,"y":240,"z":-20,"w":160,"h":100,"gn":"Ling","fn":"Bouvier","sx":0,"br":"2010","dt":"-","oi":""},{"id":15,"x":1169,"y":99,"z":-20,"w":160,"h":100,"gn":"Herb","fn":"Powell","sx":1,"br":"","dt":"","oi":""},{"id":16,"x":740,"y":-185,"z":-20,"w":160,"h":100,"gn":"Amber","fn":"","sx":0,"br":"","dt":"","oi":""}],"lines":[{"id":"0-1","rl":1},{"id":"0-2","rl":2},{"id":"0-3","rl":2},{"id":"0-4","rl":2},{"id":"1-5","rl":2},{"id":"5-6","rl":5},{"id":"0-7","rl":2},{"id":"7-8","rl":1},{"id":"7-9","rl":2},{"id":"7-10","rl":2},{"id":"6-11","rl":6},{"id":"11-13","rl":2},{"id":"9-14","rl":4},{"id":"6-12","rl":6},{"id":"12-15","rl":2},{"id":"6-16","rl":5}]}';
 
 const dbg=0;
 const box={w:160,h:100};
@@ -370,7 +366,7 @@ function addPer(){
   document.getElementById('updPer').disabled=false;
  }
  
- var x,y;
+ var x,y,z;
  var b=hole.length>0 ? hole[0] : json.people.length;
  //console.log(a);
  if (a!=-1) {
@@ -379,10 +375,11 @@ function addPer(){
   ofy=Math.round(Math.random()) ? ofy : -ofy;
   x=json.people[a].x+ofx;
   y=json.people[a].y+ofy;
+  z=json.people[a].z+ofz;
  } else {
   x=400;y=400; 
  }
- var tmp={"id":b,"x":x,"y":y,"w":box.w,"h":box.h,"gn":gn.value,"fn":fn.value,"sx":sx.selectedIndex,"br":br.value,"dt":dt.value,"oi":oi.value};
+ var tmp={"id":b,"x":x,"y":y,"z":z,"w":box.w,"h":box.h,"gn":gn.value,"fn":fn.value,"sx":sx.selectedIndex,"br":br.value,"dt":dt.value,"oi":oi.value};
  if (hole.length>0){
   //check for hole
   //console.log(hole);
@@ -544,19 +541,26 @@ function mselc(e){ //ID pairs click
  draw(1);
 }
 
-function load(e){
- //get file
- //console.log('load')
+async function load(e,m=0){
+ if (m==0){
+  var reader = new FileReader();
   var file = e.target.files[0];
   if (!file) {
     return;
   }
-  var reader = new FileReader();
   reader.onload = function(e) {
    data = e.target.result;
+   console.log(data);
    start();
   };
   reader.readAsText(file);
+ } else {
+  //reader.readAsDataURL(e);
+  //const response = await fetch(e);
+  //data = await response.blob();
+  //console.log(data);
+  //start();
+ }
 }
 
 function openFD(a,c) {
@@ -693,7 +697,7 @@ function impged(e) {
      }
      blk++; skp=0; xx++;
      if (xx>7) { xx=0;yy--; }
-     var tmp={"id":blk,"x":false,"y":false,"w":box.w,"h":box.h,"gn":'',"fn":'',"sx":sx.selectedIndex,"br":'',"dt":'',"oi":'',"indi":l.split("@")[1],famc:'',fams:'',lvl:false};
+     var tmp={"id":blk,"x":false,"y":false,"z":false,"w":box.w,"h":box.h,"gn":'',"fn":'',"sx":sx.selectedIndex,"br":'',"dt":'',"oi":'',"indi":l.split("@")[1],famc:'',fams:'',lvl:false};
      json.people.push(tmp);
      rawname='';
     }
