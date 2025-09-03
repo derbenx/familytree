@@ -65,7 +65,8 @@ var tim; //pan timer
 var row=[0,1]; //row lengths GED import
 var ged=[]; // GED tree sort data
 var ckged=[]; //GED check again/last
-var sex=['pink','cyan','#552255','grey'];
+var sex=['#FFC0CB','#00FFFF','#552255','#808080'];
+var rel=['#000000','#FF0000','#00FF00','#0000FF','#FFA500','#FFFF00','#808080'];
 var aw=window.innerWidth;
 var ah=window.innerHeight;
 var hsChld=[]; //delete helper
@@ -134,17 +135,17 @@ function draw(cl=0){
  //console.log(json.people.length);
  for(let i=0;i<json.people.length;i++){
  //console.log(json.people[i].gn);
- 
+
 //check if outside canvas, skip
 
  //check if null
   if (json.people[i]!=null){
-   
+
    sx=json.people[i].x+json.pan[0].x;
    sy=-yyy+json.people[i].y+json.pan[0].y;
    ex=sx+json.people[i].w; //just needed for check
    ey=-yyy+sy+json.people[i].h; //just needed for check
-   
+
    if (sx>lx && sy>ly && ex>lx && ey>ly && sx<aw && sy<ah && ex<aw && ey<ah){
     ctx.fillStyle=sex[json.people[i].sx];
     ctx.beginPath();
@@ -250,59 +251,79 @@ function clkd(evn){
 }
 
 function movr(evn){
- if (drag) {
-  //console.log('drag',evn,selc);
-  //console.log('drag',evn.clientX,evn.clientY);
-  if (selc[0]==-1) { //pan canvas
-   pan(evn.clientX-p.x,evn.clientY-p.y);
-  } else if (json.people[selc[0]]!=null) { //or move person
-   //console.log(evn.clientX,evn.clientY);
-   var bo=50,px=0,py=0;
-   if (evn.clientX<bo) { px=2 }
-   if (evn.clientX>aw-bo ) { px=-2 }
-   if (evn.clientY<bo) { py=2 }
-   if (evn.clientY>ah-bo ) { py=-2 }
-   if (px || py) { pan(px,py); } //border panning
-   //xy=[Math.round((evn.clientX-p.x)/ro)*ro,Math.round((evn.clientY-p.y)/ro)*ro];
-   //console.log(json.pan[0].x,json.pan[0].y);
-   for (var i=0;i<selc.length;i++){
-    json.people[selc[i]].x+=evn.clientX-p.x-px-k.x;
-    json.people[selc[i]].y+=evn.clientY-p.y-py-k.y;
-   }
-   k.x=0;k.y=0; //Clear key pan
-   draw(1);
+  if (inVR || inAR) {
+    if (drag && selc[0] !== -1 && vrIntersection) {
+      const intersectionPoint = vrIntersection.local;
+      for (var i = 0; i < selc.length; i++) {
+        const person = json.people[selc[i]];
+        if (person) {
+          person.x = (intersectionPoint[0] * 400) + 400;
+          person.y = (intersectionPoint[1] * 300) + 300;
+          person.z = intersectionPoint[2] * 100;
+        }
+      }
+    }
+  } else {
+     if (drag) {
+      if (selc[0]==-1) { //pan canvas
+       pan(evn.clientX-p.x,evn.clientY-p.y);
+      } else if (json.people[selc[0]]!=null) { //or move person
+       var bo=50,px=0,py=0;
+       if (evn.clientX<bo) { px=2 }
+       if (evn.clientX>aw-bo ) { px=-2 }
+       if (evn.clientY<bo) { py=2 }
+       if (evn.clientY>ah-bo ) { py=-2 }
+       if (px || py) { pan(px,py); } //border panning
+       for (var i=0;i<selc.length;i++){
+        json.people[selc[i]].x+=evn.clientX-p.x-px-k.x;
+        json.people[selc[i]].y+=evn.clientY-p.y-py-k.y;
+       }
+       k.x=0;k.y=0; //Clear key pan
+       draw(1);
+      }
+
+      p.x=evn.clientX;
+      p.y=evn.clientY;
+     }
   }
-  
-  p.x=evn.clientX;
-  p.y=evn.clientY;
- } //else {
-  //hover if over person, highlight rectangle
-  //if (selc[0]!=-1) {
-   //draw();
-  //}
- //}
 }
 
 function chk(xx,yy){
- //check if person at xx,yy
- //upgrade to return array to move many overlapping?
- //console.log('coor',xx,yy);
- var out=-1;
- for(let i=json.people.length;i>=0;i--){
-  if (json.people[i]!=null){
-   var tx=json.people[i].x+json.pan[0].x;
-   var ty=json.people[i].y+json.pan[0].y;
-   var tw=tx+json.people[i].w;
-   var th=ty+json.people[i].h;
-   //console.log('xywh',tx,ty,tw,th);
-   if (xx>tx && xx<tw && yy>ty && yy<th) {
-    out=i;
-    break; //only pick topmost
-   }
+  if (inVR || inAR) {
+    if (!vrIntersection) return -1;
+    const { vec3 } = glMatrix;
+    const intersectionPoint = vrIntersection.local;
+
+    for (let i = json.people.length - 1; i >= 0; i--) {
+      if (json.people[i] != null) {
+        const person = json.people[i];
+        const x = (person.x - 400) / 400;
+        const y = (person.y - 300) / 300;
+        const z = person.z / 100;
+        const personPos = vec3.fromValues(x, y, z);
+        const distance = vec3.distance(intersectionPoint, personPos);
+        if (distance < 0.1) {
+          return i;
+        }
+      }
+    }
+    return -1;
+  } else {
+     var out=-1;
+     for(let i=json.people.length-1;i>=0;i--){
+      if (json.people[i]!=null){
+       var tx=json.people[i].x+json.pan[0].x;
+       var ty=json.people[i].y+json.pan[0].y;
+       var tw=tx+json.people[i].w;
+       var th=ty+json.people[i].h;
+       if (xx>tx && xx<tw && yy>ty && yy<th) {
+        out=i;
+        break;
+       }
+      }
+     }
+     return out;
   }
- }
- //console.log(out);
- return out;
 }
 
 function scale(){
@@ -332,7 +353,7 @@ function hide(){
 
 function poplst(cl=0){
  //clear
- for (a in json.lines) { ln.options.remove(0); } 
+ for (a in json.lines) { ln.options.remove(0); }
  if (cl==1) { return; }
  //populate list
  for(let i=0;i<json.lines.length;i++){
@@ -365,7 +386,7 @@ function addPer(){
   selc = [0];
   document.getElementById('updPer').disabled=false;
  }
- 
+
  var x,y,z;
  var b=hole.length>0 ? hole[0] : json.people.length;
  //console.log(a);
@@ -377,7 +398,7 @@ function addPer(){
   y=json.people[a].y+ofy;
   z=json.people[a].z+ofz;
  } else {
-  x=400;y=400; 
+  x=400;y=400;
  }
  var tmp={"id":b,"x":x,"y":y,"z":z,"w":box.w,"h":box.h,"gn":gn.value,"fn":fn.value,"sx":sx.selectedIndex,"br":br.value,"dt":dt.value,"oi":oi.value};
  if (hole.length>0){
@@ -389,7 +410,7 @@ function addPer(){
   //add to end
   json.people.push(tmp);
  }
- 
+
  if (a!=-1) {
   json.lines.push({"id":a+"-"+b,"rl":rl.selectedIndex});
  }
@@ -415,7 +436,7 @@ function delPer(){
  //console.log(selc,hsChld[selc]);
  if (selc[0]==0 || hsChld[selc[0]] && hsChld[selc[0]].length>0) {
   alert(tran[lng.selectedIndex][50]);
-  return;    
+  return;
  } else {
   //delete
    console.log(json.people[selc[0]],hsChld[selc[0]]);
@@ -424,7 +445,7 @@ function delPer(){
    hole.push(selc[0]);
  }
  for (a in json.lines) { ln.options.remove(0); } //clear
- 
+
  for(let i=0;i<json.lines.length;i++){
   var o=json.lines[i].id.split('-');
   //console.log(o[1],json.people[o[1]]);
@@ -514,7 +535,7 @@ function mselc(e){ //ID pairs click
  for (i=0;i<=pz;i++) {
   //console.log(json.pan[0].x+px,json.pan[0].x+py)
   if (i==pz) {
-   tim[i]=setTimeout( function(){ 
+   tim[i]=setTimeout( function(){
     for (ii=0;ii<pz;ii++) {
      tim[ii]=0;
     }
@@ -810,7 +831,7 @@ function impged(e) {
      if (l.includes('FAMS')) { //parent of
       json.people[blk].fams=l.split("@")[1];
      }
-     
+
      if (l.includes('SEX')) {
       var s=l.replace(/\d+.\w+./,"").toUpperCase()=='F' ? 0 : 1;
       json.people[blk].sx=s;
@@ -878,7 +899,7 @@ function fre(id) { //find relative with lvl
  if (json.people[id].lvl!==false) {
   //console.log(json.people[id].gn,json.people[id].lvl,row[json.people[id].lvl]);
   //console.log('srow',json.people[id].lvl,'val',row[json.people[id].lvl]);
-  
+
   row[json.people[id].lvl]= row[json.people[id].lvl]===undefined ? 1 : row[json.people[id].lvl]+1;
   //console.log('erow',json.people[id].lvl,'val',row[json.people[id].lvl]);
 
@@ -995,6 +1016,91 @@ lt.onclick = function(){ openFD('.json',load) }
 imp.onclick = function(){ openFD('.ged',impged) }
 //exp.addEventListener('click', expged);
 //ln.addEventListener('dblclick', updln);
+
+const vrButton = document.getElementById("btn-vr");
+vrButton.addEventListener("click", () => {
+  toggleVR(drawVRScene, 800, 600, 800/600, () => {
+    // Session ended callback
+  });
+});
+
+const xrButton = document.getElementById("btn-xr");
+xrButton.addEventListener("click", () => {
+  toggleAR(drawVRScene, 800, 600, 800/600, () => {
+    // Session ended callback
+  });
+});
+
+function drawVRScene(gl, programs, buffers, view) {
+  const { mat4, vec3 } = glMatrix;
+
+  // People
+  for (let i = 0; i < json.people.length; i++) {
+    if (json.people[i] != null) {
+      const person = json.people[i];
+      const modelMatrix = mat4.create();
+      const x = (person.x - 400) / 400;
+      const y = (person.y - 300) / 300;
+      const z = person.z / 100;
+
+      mat4.translate(modelMatrix, modelMatrix, [x, y, z]);
+      mat4.scale(modelMatrix, modelMatrix, [0.1, 0.1, 0.1]);
+
+      let color = hexToRgb(sex[person.sx]);
+      if (!color) {
+        color = { r: 1, g: 1, b: 1 }; // Default to white if color is invalid
+      }
+
+      drawSolid(gl, programs.solidColorProgramInfo, buffers.pieceBuffers.stick, modelMatrix, view, [color.r, color.g, color.b, 1.0]);
+    }
+  }
+
+  // Lines
+  for (let i = 0; i < json.lines.length; i++) {
+    const line = json.lines[i];
+    const [startId, endId] = line.id.split('-');
+    const startPerson = json.people[startId];
+    const endPerson = json.people[endId];
+
+    if (startPerson && endPerson) {
+      const startPos = vec3.fromValues((startPerson.x - 400) / 400, (startPerson.y - 300) / 300, startPerson.z / 100);
+      const endPos = vec3.fromValues((endPerson.x - 400) / 400, (endPerson.y - 300) / 300, endPerson.z / 100);
+      const diff = vec3.subtract(vec3.create(), endPos, startPos);
+      const distance = vec3.length(diff);
+      const midPoint = vec3.add(vec3.create(), startPos, vec3.scale(vec3.create(), diff, 0.5));
+
+      const modelMatrix = mat4.create();
+      mat4.translate(modelMatrix, modelMatrix, midPoint);
+      const rotationMatrix = mat4.create();
+      const up = vec3.fromValues(0, 1, 0);
+      const direction = vec3.normalize(vec3.create(), diff);
+      const axis = vec3.cross(vec3.create(), up, direction);
+      const angle = Math.acos(vec3.dot(up, direction));
+      mat4.fromRotation(rotationMatrix, angle, axis);
+      mat4.multiply(modelMatrix, modelMatrix, rotationMatrix);
+      mat4.scale(modelMatrix, modelMatrix, [0.01, distance, 0.01]);
+
+      let color = hexToRgb(rel[line.rl]);
+       if (!color) {
+        color = { r: 1, g: 1, b: 1 }; // Default to white if color is invalid
+      }
+      drawSolid(gl, programs.solidColorProgramInfo, buffers.pieceBuffers.stick, modelMatrix, view, [color.r, color.g, color.b, 1.0]);
+    }
+  }
+}
+
+function hexToRgb(hex) {
+    if (!hex || typeof hex !== 'string') {
+        return null;
+    }
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16) / 255,
+    g: parseInt(result[2], 16) / 255,
+    b: parseInt(result[3], 16) / 255
+  } : null;
+}
+
 json = JSON.parse(data);
 cent.cen = 1;
 pan(0,150); //move canvas down
