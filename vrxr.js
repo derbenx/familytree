@@ -6,19 +6,19 @@ let arSession = null;
 
 // --- Public API ---
 
-function toggleVR(drawGameCallback, gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler) {
+function toggleVR(gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler) {
   if (vrSession) {
     vrSession.end();
   } else {
-    activateVR(drawGameCallback, gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler);
+    activateVR(gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler);
   }
 }
 
-function toggleAR(drawGameCallback, gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler) {
+function toggleAR(gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler) {
     if (arSession) {
         arSession.end();
     } else {
-        activateAR(drawGameCallback, gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler);
+        activateAR(gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler);
     }
 }
 
@@ -48,7 +48,7 @@ let vrIntersection = null;
 
 // --- Core VR/XR Logic ---
 
-async function activateVR(drawGameCallback, gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler) {
+async function activateVR(gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler) {
   const vrButton = document.getElementById("btn-vr");
   try {
     vrSession = await navigator.xr.requestSession("immersive-vr", {
@@ -57,7 +57,7 @@ async function activateVR(drawGameCallback, gameXx, gameYy, boardAspectRatio, on
     inVR = true;
     vrButton.textContent = "Stop VR";
     vrButton.disabled = false;
-    runXRRendering(vrSession, 'immersive-vr', drawGameCallback, gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler);
+    runXRRendering(vrSession, 'immersive-vr', gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler);
   } catch (error) {
     console.error("Failed to enter VR mode:", error);
     vrSession = null;
@@ -67,7 +67,7 @@ async function activateVR(drawGameCallback, gameXx, gameYy, boardAspectRatio, on
   }
 }
 
-async function activateAR(drawGameCallback, gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler) {
+async function activateAR(gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler) {
     const xrButton = document.getElementById('btn-xr');
     try {
         arSession = await navigator.xr.requestSession('immersive-ar', {
@@ -77,7 +77,7 @@ async function activateAR(drawGameCallback, gameXx, gameYy, boardAspectRatio, on
         inAR = true;
         xrButton.textContent = 'Stop XR';
         xrButton.disabled = false;
-        runXRRendering(arSession, 'immersive-ar', drawGameCallback, gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler);
+        runXRRendering(arSession, 'immersive-ar', gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler);
     } catch (e) {
         console.error("Failed to start AR session:", e);
         arSession = null;
@@ -87,7 +87,7 @@ async function activateAR(drawGameCallback, gameXx, gameYy, boardAspectRatio, on
     }
 }
 
-async function runXRRendering(session, mode, drawGameCallback, gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler) {
+async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, onEndCallback, buttonHandler) {
     const glCanvas = document.createElement("canvas");
     const gl = glCanvas.getContext("webgl", { xrCompatible: true });
     gl.enable(gl.BLEND);
@@ -127,7 +127,7 @@ async function runXRRendering(session, mode, drawGameCallback, gameXx, gameYy, b
     let buttonStatesLastFrame = {}; // For all buttons on controllers
     let activeController = null;
     let lastActiveController = null;
-    let vrCanvasPosition = (mode === 'immersive-ar') ? [0, 0.0, -2.0] : [0, 1.0, -2.0];
+    let vrCanvasPosition = (mode === 'immersive-ar') ? [0, 1.0, -2.0] : [0, 1.5, -2.0];
     let vrCanvasRotationY = 0;
     canvasModelMatrix = glMatrix.mat4.create();
     let sessionActive = true;
@@ -182,6 +182,76 @@ async function runXRRendering(session, mode, drawGameCallback, gameXx, gameYy, b
         clku({ preventDefault: () => {}, stopPropagation: () => {} }, vrIntersection.local);
       }
     });
+
+    function hexToRgb(hex) {
+        if (!hex || typeof hex !== 'string') {
+            return null;
+        }
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16) / 255,
+        g: parseInt(result[2], 16) / 255,
+        b: parseInt(result[3], 16) / 255
+      } : null;
+    }
+
+    function drawVRScene(gl, programs, buffers, view) {
+      const { mat4, vec3 } = glMatrix;
+
+      // People
+      for (let i = 0; i < json.people.length; i++) {
+        if (json.people[i] != null) {
+          const person = json.people[i];
+          const modelMatrix = mat4.create();
+          const x = (person.x - 400) / 400;
+          const y = (person.y - 300) / 300;
+          const z = person.z / 100;
+
+          mat4.translate(modelMatrix, modelMatrix, [x, y, z]);
+          mat4.scale(modelMatrix, modelMatrix, [0.2, 0.1, 0.1]);
+
+          let color = hexToRgb(sex[person.sx]);
+          if (!color) {
+            color = { r: 1, g: 1, b: 1 }; // Default to white if color is invalid
+          }
+
+          drawSolid(gl, programs.solidColorProgramInfo, buffers.pieceBuffers.stick, modelMatrix, view, [color.r, color.g, color.b, 1.0]);
+        }
+      }
+
+      // Lines
+      for (let i = 0; i < json.lines.length; i++) {
+        const line = json.lines[i];
+        const [startId, endId] = line.id.split('-');
+        const startPerson = json.people[startId];
+        const endPerson = json.people[endId];
+
+        if (startPerson && endPerson) {
+          const startPos = vec3.fromValues((startPerson.x - 400) / 400, (startPerson.y - 300) / 300, startPerson.z / 100);
+          const endPos = vec3.fromValues((endPerson.x - 400) / 400, (endPerson.y - 300) / 300, endPerson.z / 100);
+          const diff = vec3.subtract(vec3.create(), endPos, startPos);
+          const distance = vec3.length(diff);
+          const midPoint = vec3.add(vec3.create(), startPos, vec3.scale(vec3.create(), diff, 0.5));
+
+          const modelMatrix = mat4.create();
+          mat4.translate(modelMatrix, modelMatrix, midPoint);
+          const rotationMatrix = mat4.create();
+          const up = vec3.fromValues(0, 1, 0);
+          const direction = vec3.normalize(vec3.create(), diff);
+          const axis = vec3.cross(vec3.create(), up, direction);
+          const angle = Math.acos(vec3.dot(up, direction));
+          mat4.fromRotation(rotationMatrix, angle, axis);
+          mat4.multiply(modelMatrix, modelMatrix, rotationMatrix);
+          mat4.scale(modelMatrix, modelMatrix, [0.01, distance, 0.01]);
+
+          let color = hexToRgb(rel[line.rl]);
+           if (!color) {
+            color = { r: 1, g: 1, b: 1 }; // Default to white if color is invalid
+          }
+          drawSolid(gl, programs.solidColorProgramInfo, buffers.pieceBuffers.stick, modelMatrix, view, [color.r, color.g, color.b, 1.0]);
+        }
+      }
+    }
 
     function onXRFrame(time, frame) {
         if (!sessionActive) return;
@@ -291,14 +361,12 @@ async function runXRRendering(session, mode, drawGameCallback, gameXx, gameYy, b
             gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 
             // Let the specific game draw its scene
-            if (drawGameCallback) {
-                drawGameCallback(gl, programs, buffers, view);
-            }
+            drawVRScene(gl, programs, buffers, view);
 
             // Draw controllers, cursor, and alerts on top
             drawControllers(gl, solidColorProgramInfo, controllerBuffers, session, frame, referenceSpace, view);
             if (vrIntersection) {
-                drawCursor(gl, programs, buffers.genericBuffers, textures.pointerTexture, view);
+                //drawCursor(gl, programs, buffers.genericBuffers, textures.pointerTexture, view);
             }
             if (vrAlertState.shown) {
                 drawAlert(gl, textureProgramInfo, buffers.genericBuffers, textures.alertTexture, pose, view);

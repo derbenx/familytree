@@ -18,7 +18,7 @@
 */
 
 //Global Variables ***
-ver="1.4.0 VR"; //VERSION, update the third number in version anytime changes are made to this file!!
+ver="1.4.1 VR"; //VERSION, update the third number in version anytime changes are made to this file!!
 document.getElementById('ver').innerHTML="Ver "+ver;
 
 //define json structure
@@ -1019,87 +1019,17 @@ imp.onclick = function(){ openFD('.ged',impged) }
 
 const vrButton = document.getElementById("btn-vr");
 vrButton.addEventListener("click", () => {
-  toggleVR(drawVRScene, 800, 600, 800/600, () => {
+  toggleVR(null, 800, 600, 800/600, () => {
     // Session ended callback
   });
 });
 
 const xrButton = document.getElementById("btn-xr");
 xrButton.addEventListener("click", () => {
-  toggleAR(drawVRScene, 800, 600, 800/600, () => {
+  toggleAR(null, 800, 600, 800/600, () => {
     // Session ended callback
   });
 });
-
-function drawVRScene(gl, programs, buffers, view) {
-  const { mat4, vec3 } = glMatrix;
-
-  // People
-  for (let i = 0; i < json.people.length; i++) {
-    if (json.people[i] != null) {
-      const person = json.people[i];
-      const modelMatrix = mat4.create();
-      const x = (person.x - 400) / 400;
-      const y = (person.y - 300) / 300;
-      const z = person.z / 100;
-
-      mat4.translate(modelMatrix, modelMatrix, [x, y, z]);
-      mat4.scale(modelMatrix, modelMatrix, [0.1, 0.1, 0.1]);
-
-      let color = hexToRgb(sex[person.sx]);
-      if (!color) {
-        color = { r: 1, g: 1, b: 1 }; // Default to white if color is invalid
-      }
-
-      drawSolid(gl, programs.solidColorProgramInfo, buffers.pieceBuffers.stick, modelMatrix, view, [color.r, color.g, color.b, 1.0]);
-    }
-  }
-
-  // Lines
-  for (let i = 0; i < json.lines.length; i++) {
-    const line = json.lines[i];
-    const [startId, endId] = line.id.split('-');
-    const startPerson = json.people[startId];
-    const endPerson = json.people[endId];
-
-    if (startPerson && endPerson) {
-      const startPos = vec3.fromValues((startPerson.x - 400) / 400, (startPerson.y - 300) / 300, startPerson.z / 100);
-      const endPos = vec3.fromValues((endPerson.x - 400) / 400, (endPerson.y - 300) / 300, endPerson.z / 100);
-      const diff = vec3.subtract(vec3.create(), endPos, startPos);
-      const distance = vec3.length(diff);
-      const midPoint = vec3.add(vec3.create(), startPos, vec3.scale(vec3.create(), diff, 0.5));
-
-      const modelMatrix = mat4.create();
-      mat4.translate(modelMatrix, modelMatrix, midPoint);
-      const rotationMatrix = mat4.create();
-      const up = vec3.fromValues(0, 1, 0);
-      const direction = vec3.normalize(vec3.create(), diff);
-      const axis = vec3.cross(vec3.create(), up, direction);
-      const angle = Math.acos(vec3.dot(up, direction));
-      mat4.fromRotation(rotationMatrix, angle, axis);
-      mat4.multiply(modelMatrix, modelMatrix, rotationMatrix);
-      mat4.scale(modelMatrix, modelMatrix, [0.01, distance, 0.01]);
-
-      let color = hexToRgb(rel[line.rl]);
-       if (!color) {
-        color = { r: 1, g: 1, b: 1 }; // Default to white if color is invalid
-      }
-      drawSolid(gl, programs.solidColorProgramInfo, buffers.pieceBuffers.stick, modelMatrix, view, [color.r, color.g, color.b, 1.0]);
-    }
-  }
-}
-
-function hexToRgb(hex) {
-    if (!hex || typeof hex !== 'string') {
-        return null;
-    }
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16) / 255,
-    g: parseInt(result[2], 16) / 255,
-    b: parseInt(result[3], 16) / 255
-  } : null;
-}
 
 json = JSON.parse(data);
 cent.cen = 1;
