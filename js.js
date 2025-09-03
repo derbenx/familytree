@@ -18,7 +18,7 @@
 */
 
 //Global Variables ***
-ver="1.4.1 VR"; //VERSION, update the third number in version anytime changes are made to this file!!
+ver="1.4.2 VR"; //VERSION, update the third number in version anytime changes are made to this file!!
 document.getElementById('ver').innerHTML="Ver "+ver;
 
 //define json structure
@@ -203,13 +203,23 @@ function clku(evn){
  //console.log('up',evn);
 }
 
-function clkd(evn){
+function clkd(evn, intersectionData = null){
  drag=1;
  hp.value='';
  rl.selectedIndex=0;
- p.x=evn.clientX;
- p.y=evn.clientY;
- tmp=chk(p.x,p.y);
+
+ if (inVR || inAR) {
+    if (!intersectionData) {
+        drag = 0;
+        return;
+    }
+    tmp = chk(0, 0, intersectionData);
+ } else {
+    p.x=evn.clientX;
+    p.y=evn.clientY;
+    tmp=chk(p.x,p.y);
+ }
+
  //console.log(json.people[tmp]);
  if (tmp!=-1 && mu.classList[0]) { //multiple select mode
   if (selc.includes(tmp)) {
@@ -259,7 +269,7 @@ function movr(evn){
         if (person) {
           person.x = (intersectionPoint[0] * 400) + 400;
           person.y = (intersectionPoint[1] * 300) + 300;
-          person.z = intersectionPoint[2] * 100;
+          // Z position is not changed when moving
         }
       }
     }
@@ -288,22 +298,25 @@ function movr(evn){
   }
 }
 
-function chk(xx,yy){
+function chk(xx, yy, intersectionData = null){
   if (inVR || inAR) {
-    if (!vrIntersection) return -1;
-    const { vec3 } = glMatrix;
-    const intersectionPoint = vrIntersection.local;
+    if (!intersectionData) return -1;
+    const intersectionPoint = intersectionData.local;
 
     for (let i = json.people.length - 1; i >= 0; i--) {
       if (json.people[i] != null) {
         const person = json.people[i];
-        const x = (person.x - 400) / 400;
-        const y = (person.y - 300) / 300;
-        const z = person.z / 100;
-        const personPos = vec3.fromValues(x, y, z);
-        const distance = vec3.distance(intersectionPoint, personPos);
-        if (distance < 0.1) {
-          return i;
+        const person_x_local = (person.x - 400) / 400;
+        const person_y_local = (person.y - 300) / 300;
+
+        const halfWidth = 0.2 / 2;
+        const halfHeight = 0.1 / 2;
+
+        if (intersectionPoint[0] > person_x_local - halfWidth &&
+            intersectionPoint[0] < person_x_local + halfWidth &&
+            intersectionPoint[1] > person_y_local - halfHeight &&
+            intersectionPoint[1] < person_y_local + halfHeight) {
+            return i;
         }
       }
     }
@@ -1019,14 +1032,14 @@ imp.onclick = function(){ openFD('.ged',impged) }
 
 const vrButton = document.getElementById("btn-vr");
 vrButton.addEventListener("click", () => {
-  toggleVR(null, 800, 600, 800/600, () => {
+  toggleVR(800, 600, 800/600, () => {
     // Session ended callback
   });
 });
 
 const xrButton = document.getElementById("btn-xr");
 xrButton.addEventListener("click", () => {
-  toggleAR(null, 800, 600, 800/600, () => {
+  toggleAR(800, 600, 800/600, () => {
     // Session ended callback
   });
 });

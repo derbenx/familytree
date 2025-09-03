@@ -127,7 +127,7 @@ async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, o
     let buttonStatesLastFrame = {}; // For all buttons on controllers
     let activeController = null;
     let lastActiveController = null;
-    let vrCanvasPosition = (mode === 'immersive-ar') ? [0, 1.0, -2.0] : [0, 1.5, -2.0];
+    let vrCanvasPosition = (mode === 'immersive-ar') ? [0, 1.0, -2.0] : [0, 2.5, -4.0];
     let vrCanvasRotationY = 0;
     canvasModelMatrix = glMatrix.mat4.create();
     let sessionActive = true;
@@ -168,7 +168,7 @@ async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, o
       }
       if (vrIntersection) {
         // Pass the raw intersection coordinates; the game logic will be responsible for interpretation
-        clkd({ preventDefault: () => {}, stopPropagation: () => {} }, vrIntersection.local);
+        clkd({ preventDefault: () => {}, stopPropagation: () => {} }, vrIntersection);
       }
     });
 
@@ -179,7 +179,7 @@ async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, o
       }
       if (vrIntersection) {
         // Pass the raw intersection coordinates; the game logic will be responsible for interpretation
-        clku({ preventDefault: () => {}, stopPropagation: () => {} }, vrIntersection.local);
+        clku({ preventDefault: () => {}, stopPropagation: () => {} }, vrIntersection);
       }
     });
 
@@ -208,7 +208,7 @@ async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, o
           const z = person.z / 100;
 
           mat4.translate(modelMatrix, modelMatrix, [x, y, z]);
-          mat4.scale(modelMatrix, modelMatrix, [0.2, 0.1, 0.1]);
+          mat4.scale(modelMatrix, modelMatrix, [0.2, 0.1, 0.0125]);
 
           let color = hexToRgb(sex[person.sx]);
           if (!color) {
