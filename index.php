@@ -50,13 +50,15 @@
 <button id="cent">Center Tree</button>
 <button id='imp'>Import GED</button>
 <button id='sos'>Help</button>
-<button id='svr'>Start VR</button>
-<button id='sxr'>Start XR</button>
+<button id='btn-vr'>Start VR</button>
+<button id='btn-xr'>Start XR</button>
 [<font id='ver'></font>]<br>
 </div>
 <hr id="hr">
 <button id='sh'>Hide</button>
 </div>
+<script src='gl-matrix.min.js'></script>
+<script src='vrxr.js'></script>
 <script src='translate.js'></script>
 <script src='js.js'></script>
 </body>
