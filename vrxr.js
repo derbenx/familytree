@@ -127,7 +127,7 @@ async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, o
     let buttonStatesLastFrame = {}; // For all buttons on controllers
     let activeController = null;
     let lastActiveController = null;
-    let vrCanvasPosition = (mode === 'immersive-ar') ? [0, 1.0, -2.0] : [0, 2.5, -6.0];
+    let vrCanvasPosition = (mode === 'immersive-ar') ? [0, 1.0, -2.0] : [0, 2.5, -12.0];
     let vrCanvasRotationY = 0;
     canvasModelMatrix = glMatrix.mat4.create();
     let sessionActive = true;
@@ -166,10 +166,8 @@ async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, o
         ignoreNextSelectEnd = true;
         return;
       }
-      if (vrIntersection) {
-        // Pass the raw intersection coordinates; the game logic will be responsible for interpretation
-        clkd({ preventDefault: () => {}, stopPropagation: () => {} }, vrIntersection);
-      }
+      // Pass the entire intersection object
+      clkd({ preventDefault: () => {}, stopPropagation: () => {} }, vrIntersection);
     });
 
     session.addEventListener('selectend', () => {
@@ -177,10 +175,8 @@ async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, o
         ignoreNextSelectEnd = false;
         return;
       }
-      if (vrIntersection) {
-        // Pass the raw intersection coordinates; the game logic will be responsible for interpretation
-        clku({ preventDefault: () => {}, stopPropagation: () => {} }, vrIntersection);
-      }
+      // Pass the entire intersection object
+      clku({ preventDefault: () => {}, stopPropagation: () => {} }, vrIntersection);
     });
 
     function hexToRgb(hex) {
@@ -204,7 +200,7 @@ async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, o
           const person = json.people[i];
           const modelMatrix = mat4.create();
           const x = (person.x - 400) / 400;
-          const y = -((person.y - 300) / 300);
+          const y = (person.y - 300) / 300;
           const z = person.z / 100;
 
           mat4.translate(modelMatrix, modelMatrix, [x, y, z]);
@@ -227,8 +223,8 @@ async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, o
         const endPerson = json.people[endId];
 
         if (startPerson && endPerson) {
-          const startPos = vec3.fromValues((startPerson.x - 400) / 400, -((startPerson.y - 300) / 300), startPerson.z / 100);
-          const endPos = vec3.fromValues((endPerson.x - 400) / 400, -((endPerson.y - 300) / 300), endPerson.z / 100);
+          const startPos = vec3.fromValues((startPerson.x - 400) / 400, (startPerson.y - 300) / 300, startPerson.z / 100);
+          const endPos = vec3.fromValues((endPerson.x - 400) / 400, (endPerson.y - 300) / 300, endPerson.z / 100);
           const diff = vec3.subtract(vec3.create(), endPos, startPos);
           const distance = vec3.length(diff);
           const midPoint = vec3.add(vec3.create(), startPos, vec3.scale(vec3.create(), diff, 0.5));
@@ -285,33 +281,24 @@ async function runXRRendering(session, mode, gameXx, gameYy, boardAspectRatio, o
         lastActiveController = activeController;
 
         // --- Handle controller inputs for movement, rotation, etc. ---
-        // This part remains for general navigation that should be common to all games.
-        // Left controller: movement
-        if (leftController && leftController.gamepad) {
-            const thumbstickX = leftController.gamepad.axes[2];
-            const thumbstickY = leftController.gamepad.axes[3];
-            const moveSpeed = 0.02;
-            if (Math.abs(thumbstickX) > 0.1) vrCanvasPosition[0] += thumbstickX * moveSpeed;
-            if (Math.abs(thumbstickY) > 0.1) vrCanvasPosition[1] -= thumbstickY * moveSpeed;
-        }
+        const controller = rightController || leftController;
+        if(controller && controller.gamepad) {
+            const gripPressed = controller.gamepad.buttons[1].pressed;
+            const thumbstickX = controller.gamepad.axes[2];
+            const thumbstickY = controller.gamepad.axes[3];
+            const moveSpeed = 0.05;
 
-        // Right controller: zoom and rotate
-        if (rightController && rightController.gamepad) {
-            const thumbstickY = rightController.gamepad.axes[3];
-            const zoomSpeed = 0.02;
-            if (Math.abs(thumbstickY) > 0.1) vrCanvasPosition[2] += thumbstickY * zoomSpeed;
-
-            const thumbstickX = rightController.gamepad.axes[2];
-            const rotateSpeed = 0.02;
-            if (Math.abs(thumbstickX) > 0.4) vrCanvasRotationY += thumbstickX * rotateSpeed;
-
-            const bButton = rightController.gamepad.buttons[5];
-            if (bButton && bButton.pressed && !bButtonPressedLastFrame) session.end();
-            bButtonPressedLastFrame = bButton ? bButton.pressed : false;
+            if (gripPressed) {
+                // Move up/down on Y axis
+                if (Math.abs(thumbstickY) > 0.1) vrCanvasPosition[1] -= thumbstickY * moveSpeed;
+            } else {
+                // Move on X/Z plane
+                if (Math.abs(thumbstickX) > 0.1) vrCanvasPosition[0] += thumbstickX * moveSpeed;
+                if (Math.abs(thumbstickY) > 0.1) vrCanvasPosition[2] += thumbstickY * moveSpeed;
+            }
         }
 
         // --- Intersection Detection ---
-        // This needs to happen before button handling so the intersection data is available.
         if (activeController && activeController.gripSpace) {
             const gripPose = frame.getPose(activeController.gripSpace, referenceSpace);
             if (gripPose) {

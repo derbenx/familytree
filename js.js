@@ -18,7 +18,7 @@
 */
 
 //Global Variables ***
-ver="1.4.4 VR"; //VERSION, update the third number in version anytime changes are made to this file!!
+ver="1.4.5 VR"; //VERSION, update the third number in version anytime changes are made to this file!!
 document.getElementById('ver').innerHTML="Ver "+ver;
 
 //define json structure
@@ -73,6 +73,7 @@ var hsChld=[]; //delete helper
 var fs=1,hole,json,drag=0,selc=[-1],rstim; //scrn resize timer;
 var p={x:10,y:15}; //drag pan previous
 var k={x:0,y:0}; //key pan plus drag
+var dragStartPos = null;
 //bar length
 hr.style.width=ac.getBoundingClientRect().width+'px';
 inp.style.height=inp.getBoundingClientRect().height+'px'; //set height
@@ -199,6 +200,7 @@ function pan(xx,yy,cl=1,ab=0){
 
 function clku(evn, intersectionData = null){
  drag=0;
+ dragStartPos = null;
  hp.value='';
  //console.log('up',evn);
 }
@@ -214,6 +216,9 @@ function clkd(evn, intersectionData = null){
         return;
     }
     tmp = chk(0, 0, intersectionData);
+    if (tmp !== -1) {
+        dragStartPos = intersectionData.local;
+    }
  } else {
     p.x=evn.clientX;
     p.y=evn.clientY;
@@ -262,16 +267,19 @@ function clkd(evn, intersectionData = null){
 
 function movr(evn){
   if (inVR || inAR) {
-    if (drag && selc[0] !== -1 && vrIntersection) {
+    if (drag && selc[0] !== -1 && vrIntersection && dragStartPos) {
       const intersectionPoint = vrIntersection.local;
+      const deltaX = (intersectionPoint[0] - dragStartPos[0]) * 400;
+      const deltaY = (intersectionPoint[1] - dragStartPos[1]) * 300;
+
       for (var i = 0; i < selc.length; i++) {
         const person = json.people[selc[i]];
         if (person) {
-          person.x = (intersectionPoint[0] * 400) + 400;
-          person.y = (intersectionPoint[1] * 300) + 300;
-          // Z position is not changed when moving
+          person.x += deltaX;
+          person.y -= deltaY;
         }
       }
+      dragStartPos = intersectionPoint;
     }
   } else {
      if (drag) {
