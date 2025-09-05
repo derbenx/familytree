@@ -18,7 +18,7 @@
 */
 
 //Global Variables ***
-ver="1.4.5 VR"; //VERSION, update the third number in version anytime changes are made to this file!!
+ver="1.4.6 VR"; //VERSION, update the third number in version anytime changes are made to this file!!
 document.getElementById('ver').innerHTML="Ver "+ver;
 
 //define json structure
@@ -74,6 +74,8 @@ var fs=1,hole,json,drag=0,selc=[-1],rstim; //scrn resize timer;
 var p={x:10,y:15}; //drag pan previous
 var k={x:0,y:0}; //key pan plus drag
 var dragStartPos = null;
+var dragStartPersonPos = null;
+
 //bar length
 hr.style.width=ac.getBoundingClientRect().width+'px';
 inp.style.height=inp.getBoundingClientRect().height+'px'; //set height
@@ -201,6 +203,7 @@ function pan(xx,yy,cl=1,ab=0){
 function clku(evn, intersectionData = null){
  drag=0;
  dragStartPos = null;
+ dragStartPersonPos = null;
  hp.value='';
  //console.log('up',evn);
 }
@@ -217,7 +220,9 @@ function clkd(evn, intersectionData = null){
     }
     tmp = chk(0, 0, intersectionData);
     if (tmp !== -1) {
-        dragStartPos = intersectionData.local;
+        const person = json.people[tmp];
+        dragStartPos = intersectionData.world;
+        dragStartPersonPos = {x: person.x, y: person.y, z: person.z};
     }
  } else {
     p.x=evn.clientX;
@@ -268,18 +273,25 @@ function clkd(evn, intersectionData = null){
 function movr(evn){
   if (inVR || inAR) {
     if (drag && selc[0] !== -1 && vrIntersection && dragStartPos) {
-      const intersectionPoint = vrIntersection.local;
-      const deltaX = (intersectionPoint[0] - dragStartPos[0]) * 400;
-      const deltaY = (intersectionPoint[1] - dragStartPos[1]) * 300;
+      const { vec3, mat4 } = glMatrix;
+      const invCanvasMatrix = mat4.invert(mat4.create(), getCanvasModelMatrix());
 
-      for (var i = 0; i < selc.length; i++) {
-        const person = json.people[selc[i]];
-        if (person) {
-          person.x += deltaX;
-          person.y -= deltaY;
-        }
+      const currentIntersectionWorld = vrIntersection.world;
+      const startIntersectionWorld = dragStartPos;
+
+      const deltaWorld = vec3.subtract(vec3.create(), currentIntersectionWorld, startIntersectionWorld);
+
+      const person = json.people[selc[0]];
+      if (person) {
+          const newPersonPos = {
+              x: dragStartPersonPos.x + deltaWorld[0] * 400,
+              y: dragStartPersonPos.y - deltaWorld[1] * 300,
+              z: dragStartPersonPos.z + deltaWorld[2] * 100,
+          };
+          person.x = newPersonPos.x;
+          person.y = newPersonPos.y;
+          person.z = newPersonPos.z;
       }
-      dragStartPos = intersectionPoint;
     }
   } else {
      if (drag) {
@@ -310,17 +322,6 @@ function chk(xx, yy, intersectionData = null){
   if (inVR || inAR) {
     if (!intersectionData) return -1;
 
-    const { mat4, vec3, quat } = glMatrix;
-
-    const rayOrigin = vec3.fromValues(intersectionData.gripPose.transform.position.x, intersectionData.gripPose.transform.position.y, intersectionData.gripPose.transform.position.z);
-
-    const rotX = quat.create();
-    quat.setAxisAngle(rotX, [1, 0, 0], -Math.PI / 6);
-    const gripQuat = intersectionData.gripPose.transform.orientation;
-    const finalRot = quat.multiply(quat.create(), [gripQuat.x, gripQuat.y, gripQuat.z, gripQuat.w], rotX);
-    const rayDirection = vec3.fromValues(0, 0, -1);
-    vec3.transformQuat(rayDirection, rayDirection, finalRot);
-
     let closestIntersection = Infinity;
     let selectedPerson = -1;
 
@@ -328,48 +329,32 @@ function chk(xx, yy, intersectionData = null){
         if (json.people[i] == null) continue;
 
         const person = json.people[i];
-        const personScale = [0.2, 0.1, 0.0125];
 
-        const personLocalPos = vec3.fromValues(
+        const personLocalPos = [
             (person.x - 400) / 400,
             (person.y - 300) / 300,
             person.z / 100
-        );
+        ];
 
-        const canvasMatrix = getCanvasModelMatrix();
-        const personWorldCenter = vec3.transformMat4(vec3.create(), personLocalPos, canvasMatrix);
-        const halfSize = vec3.fromValues(personScale[0]/2, personScale[1]/2, personScale[2]/2);
-        const aabbMin = vec3.subtract(vec3.create(), personWorldCenter, halfSize);
-        const aabbMax = vec3.add(vec3.create(), personWorldCenter, halfSize);
+        const intersection = intersectPlane(intersectionData.gripPose.transform, getCanvasModelMatrix(), personLocalPos[2]);
 
-        const invDir = vec3.fromValues(1.0 / rayDirection[0], 1.0 / rayDirection[1], 1.0 / rayDirection[2]);
+        if (intersection) {
+            const person_x_local = personLocalPos[0];
+            const person_y_local = personLocalPos[1];
 
-        let tmin = (aabbMin[0] - rayOrigin[0]) * invDir[0];
-        let tmax = (aabbMax[0] - rayOrigin[0]) * invDir[0];
+            const halfWidth = 0.2 / 2;
+            const halfHeight = 0.1 / 2;
 
-        if (tmin > tmax) [tmin, tmax] = [tmax, tmin];
+            if (intersection.local[0] > person_x_local - halfWidth &&
+                intersection.local[0] < person_x_local + halfWidth &&
+                intersection.local[1] > person_y_local - halfHeight &&
+                intersection.local[1] < person_y_local + halfHeight) {
 
-        let tymin = (aabbMin[1] - rayOrigin[1]) * invDir[1];
-        let tymax = (aabbMax[1] - rayOrigin[1]) * invDir[1];
-
-        if (tymin > tymax) [tymin, tymax] = [tymax, tymin];
-
-        if ((tmin > tymax) || (tymin > tmax)) continue;
-        if (tymin > tmin) tmin = tymin;
-        if (tymax < tmax) tmax = tymax;
-
-        let tzmin = (aabbMin[2] - rayOrigin[2]) * invDir[2];
-        let tzmax = (aabbMax[2] - rayOrigin[2]) * invDir[2];
-
-        if (tzmin > tzmax) [tzmin, tzmax] = [tzmax, tzmin];
-
-        if ((tmin > tzmax) || (tzmin > tmax)) continue;
-        if (tzmin > tmin) tmin = tzmin;
-        if (tzmax < tmax) tmax = tzmax;
-
-        if (tmin < closestIntersection && tmin > 0) {
-            closestIntersection = tmin;
-            selectedPerson = i;
+                if (intersection.distance < closestIntersection) {
+                    closestIntersection = intersection.distance;
+                    selectedPerson = i;
+                }
+            }
         }
     }
     return selectedPerson;
